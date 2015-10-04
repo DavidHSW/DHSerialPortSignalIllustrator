@@ -29,6 +29,8 @@ namespace DHSignalIllustrator
         const int MAX_RANGE_X = 10;                    //the display range of x axis 
         const int DATA_BIT_NUM = 2 * LINE_NUM + 1;     //the number of bits in one package
         const int BUFFER_RECORD_NUM = 3;               //the number of buffer rows 
+        const int MARKER_SIZE = 10;
+        const int LINE_BORDER_WIDTH = 2; 
 
         //***********************************
 
@@ -71,6 +73,10 @@ namespace DHSignalIllustrator
             for (int i = 0; i < LINE_NUM; i++)
             {
                 Series line = new Series("Chanel " + (i + 1).ToString());
+                line.MarkerStyle = MarkerStyle.Cross;
+                line.MarkerSize = MARKER_SIZE;
+                line.MarkerColor = Color.Transparent;
+                line.BorderWidth = LINE_BORDER_WIDTH;
                 line.ChartType = SeriesChartType.Line;
                 line.Points.AddXY(0, 0);
                 signalChart.Series.Add(line);
@@ -108,12 +114,27 @@ namespace DHSignalIllustrator
         {
             maxX++;
 
-            for (int i = 0; i < LINE_NUM; i++)
+            //Display the pressing status (0x01:pressed 0x00:not pressed)
+            Color color;
+            if (buffer[bufferRowIndex - 1, DATA_BIT_NUM - 1] == 0x01)
             {
-                signalChart.Series[i].Points.AddXY(maxX, buffer[bufferRowIndex - 1, i * 2] * 16 * 16 + buffer[bufferRowIndex - 1, i * 2 + 1]);
+                color = Color.Red;
+            }
+            else
+            {
+                color = Color.Transparent;
             }
 
+            //Draw points on chart
+            DataPoint point;
+            for (int i = 0; i < LINE_NUM; i++)
+            {
+                point = new DataPoint(maxX, buffer[bufferRowIndex - 1, i * 2] * 16 * 16 + buffer[bufferRowIndex - 1, i * 2 + 1]);
+                point.MarkerColor = color;
+                signalChart.Series[i].Points.Add(point);
+            }
 
+            //Remove the points that can't be displayed
             if (maxX >= MAX_RANGE_X)
             {
                 signalChart.ChartAreas[0].AxisX.Minimum++;
@@ -248,11 +269,13 @@ namespace DHSignalIllustrator
             int lineNum = Convert.ToInt32(checkBox.Tag.ToString()) - 1;
             if (checkBox.Checked)
             {
-                signalChart.Series[lineNum].BorderWidth = 1;
+                signalChart.Series[lineNum].BorderWidth = LINE_BORDER_WIDTH;
+                signalChart.Series[lineNum].MarkerSize = MARKER_SIZE;
             }
             else
             {
                 signalChart.Series[lineNum].BorderWidth = 0;
+                signalChart.Series[lineNum].MarkerSize = 0;
             }
         }
     }
