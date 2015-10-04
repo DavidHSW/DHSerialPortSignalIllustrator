@@ -1,0 +1,9 @@
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\bin\Debug\DHSignalIllustrator.exe.config
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\bin\Debug\DHSignalIllustrator.exe
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\bin\Debug\DHSignalIllustrator.pdb
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.csprojResolveAssemblyReference.cache
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.Form1.resources
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.Properties.Resources.resources
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.csproj.GenerateResource.Cache
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.exe
+C:\Users\David-Hu\Desktop\Peojects\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.pdb
