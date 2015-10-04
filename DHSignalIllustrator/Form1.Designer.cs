@@ -28,9 +28,9 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea4 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend4 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series4 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.signalChart = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.startBtn = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
@@ -51,16 +51,16 @@
             // 
             // signalChart
             // 
-            chartArea4.Name = "ChartArea1";
-            this.signalChart.ChartAreas.Add(chartArea4);
-            legend4.Name = "Legend1";
-            this.signalChart.Legends.Add(legend4);
+            chartArea1.Name = "ChartArea1";
+            this.signalChart.ChartAreas.Add(chartArea1);
+            legend1.Name = "Legend1";
+            this.signalChart.Legends.Add(legend1);
             this.signalChart.Location = new System.Drawing.Point(28, 23);
             this.signalChart.Name = "signalChart";
-            series4.ChartArea = "ChartArea1";
-            series4.Legend = "Legend1";
-            series4.Name = "Series1";
-            this.signalChart.Series.Add(series4);
+            series1.ChartArea = "ChartArea1";
+            series1.Legend = "Legend1";
+            series1.Name = "Series1";
+            this.signalChart.Series.Add(series1);
             this.signalChart.Size = new System.Drawing.Size(834, 332);
             this.signalChart.TabIndex = 0;
             this.signalChart.Text = "chart1";
@@ -204,6 +204,7 @@
             // 
             // displayGroup
             // 
+            this.displayGroup.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.displayGroup.Controls.Add(this.checkBox6);
             this.displayGroup.Controls.Add(this.checkBox8);
             this.displayGroup.Controls.Add(this.checkBox1);
@@ -214,7 +215,7 @@
             this.displayGroup.Controls.Add(this.checkBox4);
             this.displayGroup.Location = new System.Drawing.Point(627, 373);
             this.displayGroup.Name = "displayGroup";
-            this.displayGroup.Size = new System.Drawing.Size(220, 120);
+            this.displayGroup.Size = new System.Drawing.Size(213, 120);
             this.displayGroup.TabIndex = 14;
             this.displayGroup.TabStop = false;
             this.displayGroup.Text = "Display Option";

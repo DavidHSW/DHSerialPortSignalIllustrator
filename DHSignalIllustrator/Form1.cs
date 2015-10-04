@@ -14,7 +14,7 @@ using System.IO;
 
 namespace DHSignalIllustrator
 {
-    public enum processState
+    public enum processStatus
     {
         WaitingForHeaderOne,
         WaitingForHeaderTwo,
@@ -34,9 +34,9 @@ namespace DHSignalIllustrator
 
         //***********************************
 
-        int maxX = 0;             //the x of the most recent added points
+        int maxX = 0;             //the x value of the most recent added points
         SerialPort com;           //port
-        processState state;       //current (customized) state of the port
+        processStatus status;       //current (customized) status of the port
 
         byte[,] buffer;           //col:DATA_BIT_NUM  row: BUFFER_RECORD_NUM
         int bufferColumnIndex;
@@ -69,6 +69,11 @@ namespace DHSignalIllustrator
             signalChart.ChartAreas[0].AxisX.Minimum = 0;
             signalChart.ChartAreas[0].AxisX.Maximum = MAX_RANGE_X - 1;
             signalChart.ChartAreas[0].AxisX.MajorGrid.LineWidth = 0;
+            signalChart.ChartAreas[0].AxisX.Title = "Unit 1";
+            signalChart.ChartAreas[0].AxisY.Title = "Unit 2";
+            signalChart.ChartAreas[0].AxisX.Interval = 0.5;
+            //signalChart.ChartAreas[0].AxisX.LabelStyle.Format = "F2";
+
 
             for (int i = 0; i < LINE_NUM; i++)
             {
@@ -96,6 +101,7 @@ namespace DHSignalIllustrator
                 {
                     (control as CheckBox).Checked = true;
                     (control as CheckBox).Enabled = Convert.ToInt32((control as CheckBox).Tag) <= LINE_NUM ? true : false;
+                    (control as CheckBox).Visible = Convert.ToInt32((control as CheckBox).Tag) <= LINE_NUM ? true : false;
                 }
             }
 
@@ -107,7 +113,7 @@ namespace DHSignalIllustrator
         {
             bufferColumnIndex = 0;
             bufferRowIndex = 0;
-            state = processState.WaitingForHeaderOne;
+            status = processStatus.WaitingForHeaderOne;
         }
 
         private void addPoints(object sender, EventArgs e)
@@ -134,11 +140,13 @@ namespace DHSignalIllustrator
                 signalChart.Series[i].Points.Add(point);
             }
 
-            //Remove the points that can't be displayed
+            //Shift chart
             if (maxX >= MAX_RANGE_X)
             {
                 signalChart.ChartAreas[0].AxisX.Minimum++;
                 signalChart.ChartAreas[0].AxisX.Maximum++;
+
+                //Remove the points that can't be displayed
                 for (int j = 0; j < LINE_NUM; j++) signalChart.Series[j].Points.RemoveAt(0);
             }
              
@@ -203,20 +211,20 @@ namespace DHSignalIllustrator
  
                 if (buf[0] == 0x7E) 
                 {
-                    state = processState.WaitingForHeaderTwo;
+                    status = processStatus.WaitingForHeaderTwo;
                     bufferColumnIndex = 0;
                 }
 
                 //header: Ox7E = 126, Ox45 = 69
-                switch (state)
+                switch (status)
                 {
-                    case processState.WaitingForHeaderOne:
-                        if (buf[0] == 0x7E) state = processState.WaitingForHeaderTwo;
+                    case processStatus.WaitingForHeaderOne:
+                        if (buf[0] == 0x7E) status = processStatus.WaitingForHeaderTwo;
                         break;
-                    case processState.WaitingForHeaderTwo:
-                        if (buf[0] == 0x45) state = processState.WaitingForData;
+                    case processStatus.WaitingForHeaderTwo:
+                        if (buf[0] == 0x45) status = processStatus.WaitingForData;
                         break;
-                    case processState.WaitingForData:
+                    case processStatus.WaitingForData:
                         buffer[bufferRowIndex,bufferColumnIndex++] = buf[0];
                         if (bufferColumnIndex >= DATA_BIT_NUM)
                         {
@@ -224,7 +232,7 @@ namespace DHSignalIllustrator
                             bufferRowIndex++;
 
                             this.Invoke(new EventHandler(addPoints));
-                            state = processState.WaitingForHeaderOne;
+                            status = processStatus.WaitingForHeaderOne;
 
                             if (bufferRowIndex == BUFFER_RECORD_NUM)
                             {
