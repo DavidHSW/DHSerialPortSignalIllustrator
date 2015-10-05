@@ -29,7 +29,8 @@ namespace DHSignalIllustrator
         const int MAX_RANGE_X = 100;                    //the display range of x axis 
         const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package
         const int BUFFER_RECORD_NUM = 200;               //the number of buffer rows 
-        const int DATA_BITS_PER_PACKAGE = 33;
+        const int DATA_NUM_PER_PACKAGE = 16;
+        const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;
 
         const int MARKER_SIZE = 10;
         const int LINE_BORDER_WIDTH = 2;
@@ -54,7 +55,7 @@ namespace DHSignalIllustrator
 
             resetStatus();
 
-            buffer = new byte[BUFFER_RECORD_NUM,DATA_BITS_PER_PACKAGE];
+            buffer = new byte[BUFFER_RECORD_NUM,DATA_BYTES_PER_PACKAGE];
             closing = false;
             listening = false;
 
@@ -74,8 +75,7 @@ namespace DHSignalIllustrator
             signalChart.ChartAreas[0].AxisX.MajorGrid.LineWidth = 0;
             signalChart.ChartAreas[0].AxisX.Title = "Signal points";
             signalChart.ChartAreas[0].AxisY.Title = "Signal value";
-            //signalChart.ChartAreas[0].AxisX.Interval = 0.5;
-            //signalChart.ChartAreas[0].AxisX.LabelStyle.Format = "D";
+            signalChart.ChartAreas[0].AxisX.Interval = 20;
 
 
             for (int i = 0; i < LINE_NUM; i++)
@@ -125,7 +125,7 @@ namespace DHSignalIllustrator
 
             //Display the pressing status (0x01:pressed 0x00:not pressed)
             Color color;
-            if (buffer[bufferRowIndex - 1, DATA_BITS_PER_PACKAGE - 1] == 0x01)
+            if (buffer[bufferRowIndex - 1, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
             {
                 color = Color.Red;
             }
@@ -146,8 +146,8 @@ namespace DHSignalIllustrator
             //Shift chart
             if (maxX >= MAX_RANGE_X)
             {
-                signalChart.ChartAreas[0].AxisX.Minimum++;// = (signalChart.ChartAreas[0].AxisX.Minimum + 1) % BUFFER_RECORD_NUM;
-                signalChart.ChartAreas[0].AxisX.Maximum++;// = (signalChart.ChartAreas[0].AxisX.Maximum + 1) % BUFFER_RECORD_NUM;
+                signalChart.ChartAreas[0].AxisX.Minimum++;
+                signalChart.ChartAreas[0].AxisX.Maximum++;
 
                 //Remove the points that can't be displayed
                 for (int j = 0; j < LINE_NUM; j++) signalChart.Series[j].Points.RemoveAt(0);
@@ -171,8 +171,6 @@ namespace DHSignalIllustrator
                 com.DataBits = 8;
             }
 
-           //if (!com.IsOpen)
-           // {
             try
             {
                 closing = false;
@@ -186,8 +184,6 @@ namespace DHSignalIllustrator
             {
                 MessageBox.Show("The current port is occupied by other program! Please try another one!");
             }
-            //}
-
         }
 
         public void stopCom(object sender, EventArgs e)
@@ -259,7 +255,7 @@ namespace DHSignalIllustrator
                     break;
                 case processStatus.WaitingForData:
                     buffer[bufferRowIndex, bufferColumnIndex++] = bit;
-                    if (bufferColumnIndex >= DATA_BITS_PER_PACKAGE)
+                    if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
                     {
                         bufferColumnIndex = 0;
                         bufferRowIndex++;
@@ -287,11 +283,12 @@ namespace DHSignalIllustrator
             for (int i = 0; i < bufferRowIndex; i++)
             {
                 sw.Write("\r\n");
-                for (int j = 0; j < DATA_BITS_PER_PACKAGE; j++)
+                for (int j = 0; j < DATA_NUM_PER_PACKAGE; j++)
                 {
-                    sw.Write(buffer[i,j]);
+                    sw.Write(buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1]);
                     sw.Write(' ');
                 }
+                sw.Write(buffer[i,DATA_BYTES_PER_PACKAGE - 1]);
             }
             sw.Close();
             file.Close();
