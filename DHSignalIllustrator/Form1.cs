@@ -81,7 +81,7 @@ namespace DHSignalIllustrator
 
             for (int i = 0; i < LINE_NUM; i++)
             {
-                Series line = new Series("Chanel " + (i + 1).ToString());
+                Series line = new Series("Channel " + (i + 1).ToString());
                 line.MarkerStyle = MarkerStyle.Cross;
                 line.MarkerSize = MARKER_SIZE;
                 line.MarkerColor = Color.Transparent;

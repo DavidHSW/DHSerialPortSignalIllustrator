@@ -114,7 +114,7 @@
             this.checkBox1.Size = new System.Drawing.Size(78, 16);
             this.checkBox1.TabIndex = 5;
             this.checkBox1.Tag = "1";
-            this.checkBox1.Text = "checkBox1";
+            this.checkBox1.Text = "Channel 1";
             this.checkBox1.UseVisualStyleBackColor = true;
             this.checkBox1.Click += new System.EventHandler(this.displayLine);
             // 
@@ -126,7 +126,7 @@
             this.checkBox2.Size = new System.Drawing.Size(78, 16);
             this.checkBox2.TabIndex = 6;
             this.checkBox2.Tag = "2";
-            this.checkBox2.Text = "checkBox2";
+            this.checkBox2.Text = "Channel 2";
             this.checkBox2.UseVisualStyleBackColor = true;
             this.checkBox2.Click += new System.EventHandler(this.displayLine);
             // 
@@ -138,7 +138,7 @@
             this.checkBox3.Size = new System.Drawing.Size(78, 16);
             this.checkBox3.TabIndex = 7;
             this.checkBox3.Tag = "3";
-            this.checkBox3.Text = "checkBox3";
+            this.checkBox3.Text = "Channel 3";
             this.checkBox3.UseVisualStyleBackColor = true;
             this.checkBox3.Click += new System.EventHandler(this.displayLine);
             // 
@@ -150,7 +150,7 @@
             this.checkBox4.Size = new System.Drawing.Size(78, 16);
             this.checkBox4.TabIndex = 8;
             this.checkBox4.Tag = "4";
-            this.checkBox4.Text = "checkBox4";
+            this.checkBox4.Text = "Channel 4";
             this.checkBox4.UseVisualStyleBackColor = true;
             this.checkBox4.Click += new System.EventHandler(this.displayLine);
             // 
@@ -162,7 +162,7 @@
             this.checkBox5.Size = new System.Drawing.Size(78, 16);
             this.checkBox5.TabIndex = 9;
             this.checkBox5.Tag = "5";
-            this.checkBox5.Text = "checkBox5";
+            this.checkBox5.Text = "Channel 5";
             this.checkBox5.UseVisualStyleBackColor = true;
             this.checkBox5.Click += new System.EventHandler(this.displayLine);
             // 
@@ -174,7 +174,7 @@
             this.checkBox6.Size = new System.Drawing.Size(78, 16);
             this.checkBox6.TabIndex = 10;
             this.checkBox6.Tag = "6";
-            this.checkBox6.Text = "checkBox6";
+            this.checkBox6.Text = "Channel 6";
             this.checkBox6.UseVisualStyleBackColor = true;
             this.checkBox6.Click += new System.EventHandler(this.displayLine);
             // 
@@ -186,7 +186,7 @@
             this.checkBox7.Size = new System.Drawing.Size(78, 16);
             this.checkBox7.TabIndex = 11;
             this.checkBox7.Tag = "7";
-            this.checkBox7.Text = "checkBox7";
+            this.checkBox7.Text = "Channel 7";
             this.checkBox7.UseVisualStyleBackColor = true;
             this.checkBox7.Click += new System.EventHandler(this.displayLine);
             // 
@@ -198,7 +198,7 @@
             this.checkBox8.Size = new System.Drawing.Size(78, 16);
             this.checkBox8.TabIndex = 12;
             this.checkBox8.Tag = "8";
-            this.checkBox8.Text = "checkBox8";
+            this.checkBox8.Text = "Channel 8";
             this.checkBox8.UseVisualStyleBackColor = true;
             this.checkBox8.Click += new System.EventHandler(this.displayLine);
             // 
@@ -213,7 +213,7 @@
             this.displayGroup.Controls.Add(this.checkBox3);
             this.displayGroup.Controls.Add(this.checkBox5);
             this.displayGroup.Controls.Add(this.checkBox4);
-            this.displayGroup.Location = new System.Drawing.Point(627, 373);
+            this.displayGroup.Location = new System.Drawing.Point(627, 370);
             this.displayGroup.Name = "displayGroup";
             this.displayGroup.Size = new System.Drawing.Size(213, 120);
             this.displayGroup.TabIndex = 14;
