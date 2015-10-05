@@ -25,12 +25,14 @@ namespace DHSignalIllustrator
     {
         //*************config****************
 
-        const int LINE_NUM = 2;                        //the number of line in chart
-        const int MAX_RANGE_X = 10;                    //the display range of x axis 
-        const int DATA_BIT_NUM = 2 * LINE_NUM + 1;     //the number of bits in one package
-        const int BUFFER_RECORD_NUM = 3;               //the number of buffer rows 
+        const int LINE_NUM = 8;                        //the number of line in chart
+        const int MAX_RANGE_X = 100;                    //the display range of x axis 
+        const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package
+        const int BUFFER_RECORD_NUM = 200;               //the number of buffer rows 
+        const int DATA_BITS_PER_PACKAGE = 33;
+
         const int MARKER_SIZE = 10;
-        const int LINE_BORDER_WIDTH = 2; 
+        const int LINE_BORDER_WIDTH = 2;
 
         //***********************************
 
@@ -41,6 +43,8 @@ namespace DHSignalIllustrator
         byte[,] buffer;           //col:DATA_BIT_NUM  row: BUFFER_RECORD_NUM
         int bufferColumnIndex;
         int bufferRowIndex;
+        bool closing;
+        bool listening;
 
         public Form1()
         {
@@ -50,16 +54,15 @@ namespace DHSignalIllustrator
 
             resetStatus();
 
-            buffer = new byte[BUFFER_RECORD_NUM,DATA_BIT_NUM];
+            buffer = new byte[BUFFER_RECORD_NUM,DATA_BITS_PER_PACKAGE];
+            closing = false;
+            listening = false;
 
         }
 
         ~Form1()
         {
-            if (com.IsOpen)
-            {
-                com.Close();
-            }
+            this.stopCom(this, null);
         }
 
         private void configureUI()
@@ -69,10 +72,10 @@ namespace DHSignalIllustrator
             signalChart.ChartAreas[0].AxisX.Minimum = 0;
             signalChart.ChartAreas[0].AxisX.Maximum = MAX_RANGE_X - 1;
             signalChart.ChartAreas[0].AxisX.MajorGrid.LineWidth = 0;
-            signalChart.ChartAreas[0].AxisX.Title = "Unit 1";
-            signalChart.ChartAreas[0].AxisY.Title = "Unit 2";
-            signalChart.ChartAreas[0].AxisX.Interval = 0.5;
-            //signalChart.ChartAreas[0].AxisX.LabelStyle.Format = "F2";
+            signalChart.ChartAreas[0].AxisX.Title = "Signal points";
+            signalChart.ChartAreas[0].AxisY.Title = "Signal value";
+            //signalChart.ChartAreas[0].AxisX.Interval = 0.5;
+            //signalChart.ChartAreas[0].AxisX.LabelStyle.Format = "D";
 
 
             for (int i = 0; i < LINE_NUM; i++)
@@ -122,7 +125,7 @@ namespace DHSignalIllustrator
 
             //Display the pressing status (0x01:pressed 0x00:not pressed)
             Color color;
-            if (buffer[bufferRowIndex - 1, DATA_BIT_NUM - 1] == 0x01)
+            if (buffer[bufferRowIndex - 1, DATA_BITS_PER_PACKAGE - 1] == 0x01)
             {
                 color = Color.Red;
             }
@@ -143,8 +146,8 @@ namespace DHSignalIllustrator
             //Shift chart
             if (maxX >= MAX_RANGE_X)
             {
-                signalChart.ChartAreas[0].AxisX.Minimum++;
-                signalChart.ChartAreas[0].AxisX.Maximum++;
+                signalChart.ChartAreas[0].AxisX.Minimum++;// = (signalChart.ChartAreas[0].AxisX.Minimum + 1) % BUFFER_RECORD_NUM;
+                signalChart.ChartAreas[0].AxisX.Maximum++;// = (signalChart.ChartAreas[0].AxisX.Maximum + 1) % BUFFER_RECORD_NUM;
 
                 //Remove the points that can't be displayed
                 for (int j = 0; j < LINE_NUM; j++) signalChart.Series[j].Points.RemoveAt(0);
@@ -172,7 +175,9 @@ namespace DHSignalIllustrator
            // {
             try
             {
+                closing = false;
                 com.Open();
+                com.DiscardInBuffer();
                 startBtn.Enabled = false;
                 portsList.Enabled = false;
                 stopBtn.Enabled = true;
@@ -189,6 +194,11 @@ namespace DHSignalIllustrator
         {
             if (com != null && com.IsOpen) 
             {
+                closing = true;
+                while(listening)
+                {
+                    Application.DoEvents();
+                }
                 com.Close();
                 startBtn.Enabled = true;
                 portsList.Enabled = true;
@@ -202,55 +212,71 @@ namespace DHSignalIllustrator
 
         private void onDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
+            if (closing) return;
             try
             {
-                byte[] buf = new byte[com.BytesToRead];
-                com.Read(buf, 0, com.BytesToRead);
+                listening = true;
+                int readBytes = com.BytesToRead;
+                byte[] buf = new byte[readBytes];
+                com.Read(buf, 0, readBytes);
+
+                for (int i = 0; i < readBytes; i++)
+                {
+                    processData(buf[i]);
+                }
                 //string str = buf[0].ToString();//Convert.ToString(buf[0],2);//System.Text.Encoding.ASCII.GetString(buf);
                 //int i = BitConverter.ToInt16(buf, 0);
- 
-                if (buf[0] == 0x7E) 
-                {
-                    status = processStatus.WaitingForHeaderTwo;
-                    bufferColumnIndex = 0;
-                }
 
-                //header: Ox7E = 126, Ox45 = 69
-                switch (status)
-                {
-                    case processStatus.WaitingForHeaderOne:
-                        if (buf[0] == 0x7E) status = processStatus.WaitingForHeaderTwo;
-                        break;
-                    case processStatus.WaitingForHeaderTwo:
-                        if (buf[0] == 0x45) status = processStatus.WaitingForData;
-                        break;
-                    case processStatus.WaitingForData:
-                        buffer[bufferRowIndex,bufferColumnIndex++] = buf[0];
-                        if (bufferColumnIndex >= DATA_BIT_NUM)
-                        {
-                            bufferColumnIndex = 0;
-                            bufferRowIndex++;
 
-                            this.Invoke(new EventHandler(addPoints));
-                            status = processStatus.WaitingForHeaderOne;
-
-                            if (bufferRowIndex == BUFFER_RECORD_NUM)
-                            {
-                                saveBuffer();
-                                bufferRowIndex = 0;
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
 
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 MessageBox.Show(exception.ToString());
             }
+            finally
+            {
+                listening = false;
+            }
+        }
 
+        private void processData(byte bit)
+        {
+            if (bit == 0x7E)
+            {
+                status = processStatus.WaitingForHeaderTwo;
+                bufferColumnIndex = 0;
+            }
+
+            //header: Ox7E = 126, Ox45 = 69
+            switch (status)
+            {
+                case processStatus.WaitingForHeaderOne:
+                    if (bit == 0x7E) status = processStatus.WaitingForHeaderTwo;
+                    break;
+                case processStatus.WaitingForHeaderTwo:
+                    if (bit == 0x45) status = processStatus.WaitingForData;
+                    break;
+                case processStatus.WaitingForData:
+                    buffer[bufferRowIndex, bufferColumnIndex++] = bit;
+                    if (bufferColumnIndex >= DATA_BITS_PER_PACKAGE)
+                    {
+                        bufferColumnIndex = 0;
+                        bufferRowIndex++;
+
+                        this.Invoke(new EventHandler(addPoints));
+                        status = processStatus.WaitingForHeaderOne;
+
+                        if (bufferRowIndex == BUFFER_RECORD_NUM)
+                        {
+                            saveBuffer();
+                            bufferRowIndex = 0;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void saveBuffer()
@@ -261,7 +287,7 @@ namespace DHSignalIllustrator
             for (int i = 0; i < bufferRowIndex; i++)
             {
                 sw.Write("\r\n");
-                for (int j = 0; j < DATA_BIT_NUM; j++)
+                for (int j = 0; j < DATA_BITS_PER_PACKAGE; j++)
                 {
                     sw.Write(buffer[i,j]);
                     sw.Write(' ');
