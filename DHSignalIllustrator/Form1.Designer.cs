@@ -28,9 +28,9 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
-            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
-            System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea2 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend2 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.signalChart = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.startBtn = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
@@ -51,16 +51,16 @@
             // 
             // signalChart
             // 
-            chartArea1.Name = "ChartArea1";
-            this.signalChart.ChartAreas.Add(chartArea1);
-            legend1.Name = "Legend1";
-            this.signalChart.Legends.Add(legend1);
+            chartArea2.Name = "ChartArea1";
+            this.signalChart.ChartAreas.Add(chartArea2);
+            legend2.Name = "Legend1";
+            this.signalChart.Legends.Add(legend2);
             this.signalChart.Location = new System.Drawing.Point(28, 23);
             this.signalChart.Name = "signalChart";
-            series1.ChartArea = "ChartArea1";
-            series1.Legend = "Legend1";
-            series1.Name = "Series1";
-            this.signalChart.Series.Add(series1);
+            series2.ChartArea = "ChartArea1";
+            series2.Legend = "Legend1";
+            series2.Name = "Series1";
+            this.signalChart.Series.Add(series2);
             this.signalChart.Size = new System.Drawing.Size(834, 332);
             this.signalChart.TabIndex = 0;
             this.signalChart.Text = "chart1";
@@ -72,7 +72,7 @@
             this.startBtn.Name = "startBtn";
             this.startBtn.Size = new System.Drawing.Size(316, 47);
             this.startBtn.TabIndex = 1;
-            this.startBtn.Text = "Start to Conmmunicate";
+            this.startBtn.Text = "Start to Listen";
             this.startBtn.UseVisualStyleBackColor = true;
             this.startBtn.Click += new System.EventHandler(this.startToCom);
             // 

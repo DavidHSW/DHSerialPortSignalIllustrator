@@ -59,6 +59,9 @@ namespace DHSignalIllustrator
             closing = false;
             listening = false;
 
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+
         }
 
         ~Form1()
@@ -70,7 +73,7 @@ namespace DHSignalIllustrator
         {
             //chart
             signalChart.Series.Clear();
-            signalChart.ChartAreas[0].AxisY.Maximum = 4000;
+            //signalChart.ChartAreas[0].AxisY.Maximum = 4000;
             signalChart.ChartAreas[0].AxisX.Minimum = 0;
             signalChart.ChartAreas[0].AxisX.Maximum = MAX_RANGE_X - 1;
             signalChart.ChartAreas[0].AxisX.MajorGrid.LineWidth = 0;
@@ -259,6 +262,8 @@ namespace DHSignalIllustrator
                 point.MarkerColor = color;
                 signalChart.Series[i].Points.Add(point);
             }
+
+            signalChart.ChartAreas[0].RecalculateAxesScale();
 
             //Shift chart
             if (maxX >= MAX_RANGE_X)
