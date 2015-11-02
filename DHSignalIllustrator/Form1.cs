@@ -27,7 +27,7 @@ namespace DHSignalIllustrator
 
         const int LINE_NUM = 8;                              //the number of line in chart
         const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package
-        const int BUFFER_RECORD_NUM = 500;                   //the number of buffer rows 
+        const int BUFFER_RECORD_NUM = 200;                   //the number of buffer rows 
         const int DATA_NUM_PER_PACKAGE = 16;
         const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;    //"+1" for pressing status byte
 
@@ -47,6 +47,9 @@ namespace DHSignalIllustrator
         bool closing;               //whether the port is being closing
         bool listening;             //whether the port is listening
 
+        FileStream file;
+        StreamWriter sw;
+
         public Form1()
         {
             InitializeComponent();
@@ -61,12 +64,16 @@ namespace DHSignalIllustrator
 
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
-
         }
 
         ~Form1()
         {
-            stopCom(this, null);
+            if (com.IsOpen)
+            {
+                stopCom(this, null);
+            }
+            sw.Close();
+            file.Close();
         }
 
         private void configureUI()
@@ -147,6 +154,9 @@ namespace DHSignalIllustrator
                 startBtn.Enabled = false;
                 portsList.Enabled = false;
                 stopBtn.Enabled = true;
+
+                file = new FileStream("Cached_Data.txt", FileMode.Append, FileAccess.Write, FileShare.Write, 4096, true);
+                sw = new StreamWriter(file);
             }
             catch (UnauthorizedAccessException exception)
             {
@@ -165,12 +175,16 @@ namespace DHSignalIllustrator
                     Application.DoEvents();
                 }
                 com.Close();
+
                 startBtn.Enabled = true;
                 portsList.Enabled = true;
                 stopBtn.Enabled = false;
 
                 saveBuffer();
                 resetStatus();
+
+                sw.Close();
+                file.Close();
 
             }
         }
@@ -200,9 +214,9 @@ namespace DHSignalIllustrator
             }
         }
 
-        private void processData(byte bit)
+        private void processData(byte dataByte)
         {
-            if (bit == 0x7E)
+            if (dataByte == 0x7E)
             {
                 status = processStatus.WaitingForHeaderTwo;
                 bufferColumnIndex = 0;
@@ -212,13 +226,13 @@ namespace DHSignalIllustrator
             switch (status)
             {
                 case processStatus.WaitingForHeaderOne:
-                    if (bit == 0x7E) status = processStatus.WaitingForHeaderTwo;
+                    if (dataByte == 0x7E) status = processStatus.WaitingForHeaderTwo;
                     break;
                 case processStatus.WaitingForHeaderTwo:
-                    if (bit == 0x45) status = processStatus.WaitingForData;
+                    if (dataByte == 0x45) status = processStatus.WaitingForData;
                     break;
                 case processStatus.WaitingForData:
-                    buffer[bufferRowIndex, bufferColumnIndex++] = bit;
+                    buffer[bufferRowIndex, bufferColumnIndex++] = dataByte;
                     if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
                     {
                         bufferColumnIndex = 0;
@@ -279,9 +293,7 @@ namespace DHSignalIllustrator
 
         private void saveBuffer()
         {
-            FileStream file = new FileStream("Cached_Data.txt", FileMode.Append);
-            StreamWriter sw = new StreamWriter(file);
-
+            
             for (int i = 0; i < bufferRowIndex; i++)
             {
                 sw.Write("\r\n");
@@ -292,8 +304,7 @@ namespace DHSignalIllustrator
                 }
                 sw.Write(buffer[i,DATA_BYTES_PER_PACKAGE - 1]);
             }
-            sw.Close();
-            file.Close();
+
         }
 
         public void displayLine(object sender, EventArgs e)
