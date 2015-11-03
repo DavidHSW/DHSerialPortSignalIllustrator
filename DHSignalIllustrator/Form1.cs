@@ -28,11 +28,11 @@ namespace DHSignalIllustrator
         const int LINE_NUM = 8;                              //the number of line in chart
         const int BUFFER_RECORD_NUM = 500;                   //the number of buffer rows 
         const int DATA_NUM_PER_PACKAGE = 16;
-        const int portReceivedBytesThreshold = 2048;
+        const int portReceivedBytesThreshold = 1024;
 
         const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package to be displayed
         const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;    //"+1" for pressing status byte
-        const int drawingStride = portReceivedBytesThreshold / DATA_BYTES_PER_PACKAGE;
+        const int drawingStride = portReceivedBytesThreshold / DATA_BYTES_PER_PACKAGE;  //When retrieve data from port, display these data as one point(for rugular displaying). The stride is the number of point in one time retrieving.
 
         const int MAX_RANGE_X = 100;                         //the display range of x axis 
         const int MARKER_SIZE = 10;
@@ -200,11 +200,8 @@ namespace DHSignalIllustrator
                 listening = true;
                 int readBytes = com.BytesToRead;
                 com.Read(readBuffer, 0, readBytes);
+                processData(readBuffer, readBytes);
 
-                for (int i = 0; i < readBytes; i++)
-                {
-                    processData(readBuffer[i]);
-                }
             }
             catch (Exception exception)
             {
@@ -216,46 +213,49 @@ namespace DHSignalIllustrator
             }
         }
 
-        private void processData(byte dataByte)
+        private void processData(byte[] readBuffer, int size)
         {
-            if (dataByte == 0x7E)
+            for (int i = 0; i < size; i++)
             {
-                status = processStatus.WaitingForHeaderTwo;
-                bufferColumnIndex = 0;
-            }
+                if (readBuffer[i] == 0x7E)
+                {
+                    status = processStatus.WaitingForHeaderTwo;
+                    bufferColumnIndex = 0;
+                }
 
-            //header: Ox7E = 126, Ox45 = 69
-            switch (status)
-            {
-                case processStatus.WaitingForHeaderOne:
-                    if (dataByte == 0x7E) status = processStatus.WaitingForHeaderTwo;
-                    break;
-                case processStatus.WaitingForHeaderTwo:
-                    if (dataByte == 0x45) status = processStatus.WaitingForData;
-                    break;
-                case processStatus.WaitingForData:
-                    {
-                        buffer[bufferRowIndex, bufferColumnIndex++] = dataByte;
-                        if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
-                        {
-                            bufferColumnIndex = 0;
-                            bufferRowIndex++;
-
-                            if (bufferRowIndex % drawingStride == 0)
-                            {
-                                this.Invoke(new EventHandler(drawPoints));
-                            }
-
-                            status = processStatus.WaitingForHeaderOne;
-
-                            if (bufferRowIndex == BUFFER_RECORD_NUM)
-                            {
-                                saveBuffer();
-                                bufferRowIndex = 0;
-                            }
-                        }
+                //header: Ox7E = 126, Ox45 = 69
+                switch (status)
+                {
+                    case processStatus.WaitingForHeaderOne:
+                        if (readBuffer[i] == 0x7E) status = processStatus.WaitingForHeaderTwo;
                         break;
-                    }
+                    case processStatus.WaitingForHeaderTwo:
+                        if (readBuffer[i] == 0x45) status = processStatus.WaitingForData;
+                        break;
+                    case processStatus.WaitingForData:
+                        {
+                            buffer[bufferRowIndex, bufferColumnIndex++] = readBuffer[i];
+                            if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
+                            {
+                                bufferColumnIndex = 0;
+                                bufferRowIndex++;
+
+                                if (bufferRowIndex % drawingStride == 0)
+                                {
+                                    this.Invoke(new EventHandler(drawPoints));
+                                }
+
+                                status = processStatus.WaitingForHeaderOne;
+
+                                if (bufferRowIndex == BUFFER_RECORD_NUM)
+                                {
+                                    saveBuffer();
+                                    bufferRowIndex = 0;
+                                }
+                            }
+                            break;
+                        }
+                }
             }
         }
 
@@ -349,7 +349,7 @@ namespace DHSignalIllustrator
 
         private void saveBuffer()
         {
-            
+
             for (int i = 0; i < bufferRowIndex; i++)
             {
                 sw.Write("\r\n");
@@ -358,7 +358,7 @@ namespace DHSignalIllustrator
                     sw.Write(buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1]);
                     sw.Write(' ');
                 }
-                sw.Write(buffer[i,DATA_BYTES_PER_PACKAGE - 1]);
+                sw.Write(buffer[i, DATA_BYTES_PER_PACKAGE - 1]);
             }
 
         }
