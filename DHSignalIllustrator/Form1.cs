@@ -23,13 +23,16 @@ namespace DHSignalIllustrator
 
     public partial class Form1 : Form
     {
-        //*************config****************
+        //*************configure****************
 
         const int LINE_NUM = 8;                              //the number of line in chart
-        const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package
-        const int BUFFER_RECORD_NUM = 200;                   //the number of buffer rows 
+        const int BUFFER_RECORD_NUM = 500;                   //the number of buffer rows 
         const int DATA_NUM_PER_PACKAGE = 16;
+        const int portReceivedBytesThreshold = 2048;
+
+        const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package to be displayed
         const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;    //"+1" for pressing status byte
+        const int drawingStride = portReceivedBytesThreshold / DATA_BYTES_PER_PACKAGE;
 
         const int MAX_RANGE_X = 100;                         //the display range of x axis 
         const int MARKER_SIZE = 10;
@@ -41,6 +44,7 @@ namespace DHSignalIllustrator
         SerialPort com;             //port
         processStatus status;       //current (customized) status of the port
 
+        byte[] readBuffer;
         byte[,] buffer;             //col:DATA_BYTES_PER_PACKAGE  row: BUFFER_RECORD_NUM
         int bufferColumnIndex; 
         int bufferRowIndex;
@@ -58,12 +62,13 @@ namespace DHSignalIllustrator
 
             resetStatus();
 
+            readBuffer = new byte[4096];
             buffer = new byte[BUFFER_RECORD_NUM,DATA_BYTES_PER_PACKAGE];
             closing = false;
             listening = false;
 
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
+            //this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            //this.MaximizeBox = false;
         }
 
         ~Form1()
@@ -80,12 +85,9 @@ namespace DHSignalIllustrator
         {
             //chart
             signalChart.Series.Clear();
-            //signalChart.ChartAreas[0].AxisY.Maximum = 4000;
             signalChart.ChartAreas[0].AxisX.Minimum = 0;
             signalChart.ChartAreas[0].AxisX.Maximum = MAX_RANGE_X - 1;
             signalChart.ChartAreas[0].AxisX.MajorGrid.LineWidth = 0;
-            signalChart.ChartAreas[0].AxisX.Title = "Signal point";
-            signalChart.ChartAreas[0].AxisY.Title = "Signal value";
             signalChart.ChartAreas[0].AxisX.Interval = 20;
 
 
@@ -144,6 +146,7 @@ namespace DHSignalIllustrator
                 com.DataReceived += new SerialDataReceivedEventHandler(onDataReceived);
                 com.BaudRate = 115200;
                 com.DataBits = 8;
+                com.ReceivedBytesThreshold = portReceivedBytesThreshold;
             }
 
             try
@@ -155,7 +158,7 @@ namespace DHSignalIllustrator
                 portsList.Enabled = false;
                 stopBtn.Enabled = true;
 
-                file = new FileStream("Cached_Data.txt", FileMode.Append, FileAccess.Write, FileShare.Write, 4096, true);
+                file = new FileStream("Cached_Data.txt", FileMode.Append);//, FileAccess.Write, FileShare.Write, 4096, true);
                 sw = new StreamWriter(file);
             }
             catch (UnauthorizedAccessException exception)
@@ -196,12 +199,11 @@ namespace DHSignalIllustrator
             {
                 listening = true;
                 int readBytes = com.BytesToRead;
-                byte[] buf = new byte[readBytes];
-                com.Read(buf, 0, readBytes);
+                com.Read(readBuffer, 0, readBytes);
 
                 for (int i = 0; i < readBytes; i++)
                 {
-                    processData(buf[i]);
+                    processData(readBuffer[i]);
                 }
             }
             catch (Exception exception)
@@ -232,52 +234,59 @@ namespace DHSignalIllustrator
                     if (dataByte == 0x45) status = processStatus.WaitingForData;
                     break;
                 case processStatus.WaitingForData:
-                    buffer[bufferRowIndex, bufferColumnIndex++] = dataByte;
-                    if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
                     {
-                        bufferColumnIndex = 0;
-                        bufferRowIndex++;
-
-                        this.Invoke(new EventHandler(addPoints));
-                        status = processStatus.WaitingForHeaderOne;
-
-                        if (bufferRowIndex == BUFFER_RECORD_NUM)
+                        buffer[bufferRowIndex, bufferColumnIndex++] = dataByte;
+                        if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
                         {
-                            saveBuffer();
-                            bufferRowIndex = 0;
+                            bufferColumnIndex = 0;
+                            bufferRowIndex++;
+
+                            if (bufferRowIndex % drawingStride == 0)
+                            {
+                                this.Invoke(new EventHandler(drawPoints));
+                            }
+
+                            status = processStatus.WaitingForHeaderOne;
+
+                            if (bufferRowIndex == BUFFER_RECORD_NUM)
+                            {
+                                saveBuffer();
+                                bufferRowIndex = 0;
+                            }
                         }
+                        break;
                     }
-                    break;
-                default:
-                    break;
             }
         }
 
-        private void addPoints(object sender, EventArgs e)
+        private void drawPoints(object sender, EventArgs e)
         {
             maxX++;
+            for (int j = 0; j < LINE_NUM; j++)
+            {
+                int temp = 0;
 
-            //Display the pressing status (0x01:pressed 0x00:not pressed)
-            Color color;
-            if (buffer[bufferRowIndex - 1, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
-            {
-                color = Color.Red;
-            }
-            else
-            {
-                color = Color.Transparent;
-            }
+                for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
+                {
+                    temp += buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1];
+                }
 
-            //Draw points on chart
-            DataPoint point;
-            for (int i = 0; i < LINE_NUM; i++)
-            {
-                point = new DataPoint(maxX, buffer[bufferRowIndex - 1, i * 2] * 16 * 16 + buffer[bufferRowIndex - 1, i * 2 + 1]);
-                point.MarkerColor = color;
-                signalChart.Series[i].Points.Add(point);
+                signalChart.Series[j].Points.AddXY(maxX, temp / drawingStride);
+
             }
 
-            signalChart.ChartAreas[0].RecalculateAxesScale();
+            for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
+            {
+                if (buffer[i, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
+                {
+                    int count = signalChart.Series[0].Points.Count();
+                    for (int j = 0; j < LINE_NUM; j++)
+                    {
+                        signalChart.Series[j].Points[count - 1].MarkerColor = Color.Red;
+                    }
+                    break;
+                }
+            }
 
             //Shift chart
             if (maxX >= MAX_RANGE_X)
@@ -286,9 +295,56 @@ namespace DHSignalIllustrator
                 signalChart.ChartAreas[0].AxisX.Maximum++;
 
                 //Remove the points that can't be displayed
-                for (int j = 0; j < LINE_NUM; j++) signalChart.Series[j].Points.RemoveAt(0);
+                for(int i = 0; i < LINE_NUM; i++) signalChart.Series[i].Points.RemoveAt(0);
             }
 
+            //    for (int index = bufferRowIndex - drawingStride; index < bufferRowIndex; index++)
+            //    {
+            //        maxX++;
+
+            //        Display the pressing status (0x01:pressed 0x00:not pressed)
+            //        Color color;
+            //    if (buffer[index, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
+            //    {
+            //        color = Color.Red;
+            //    }
+            //    else
+            //    {
+            //        color = Color.Transparent;
+            //    }
+
+            //    DataPoint point;
+            //    if (maxX >= MAX_RANGE_X)
+            //    {
+            //        for (int i = 0; i < LINE_NUM; i++)
+            //        {
+            //            point = signalChart.Series[i].Points[0];
+            //            point.MarkerColor = color;
+            //            point.SetValueXY(maxX, buffer[index, i * 2] * 16 * 16 + buffer[index, i * 2 + 1]);
+            //            signalChart.Series[i].Points.Add(point);
+
+            //            Remove the points that can't be displayed
+            //                signalChart.Series[i].Points.RemoveAt(0);
+            //        }
+
+            //        Shift chart
+            //            signalChart.ChartAreas[0].AxisX.Minimum++;
+            //        signalChart.ChartAreas[0].AxisX.Maximum++;
+            //    }
+            //    else
+            //    {
+            //        for (int i = 0; i < LINE_NUM; i++)
+            //        {
+            //            point = new DataPoint(maxX, buffer[index, i * 2] * 16 * 16 + buffer[index, i * 2 + 1]);
+            //            point.MarkerColor = color;
+            //            signalChart.Series[i].Points.Add(point);
+
+            //        }
+            //    }
+
+            //    signalChart.ChartAreas[0].RecalculateAxesScale();
+
+            //}
         }
 
         private void saveBuffer()
