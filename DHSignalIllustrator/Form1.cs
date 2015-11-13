@@ -32,7 +32,7 @@ namespace DHSignalIllustrator
 
         const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package to be displayed
         const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;    //"+1" for pressing status byte
-        const int drawingStride = portReceivedBytesThreshold / DATA_BYTES_PER_PACKAGE;  //When retrieve data from port, display these data as one point(for rugular displaying). The stride is the number of point in one time retrieving.
+        const int drawingStride = portReceivedBytesThreshold / DATA_BYTES_PER_PACKAGE;  //When retrieved data from port, display these data as one point(for rugular displaying with average value). The stride is the number of point in one time retrieving.
 
         const int MAX_RANGE_X = 100;                         //the display range of x axis 
         const int MARKER_SIZE = 10;
@@ -44,8 +44,8 @@ namespace DHSignalIllustrator
         SerialPort com;             //port
         processStatus status;       //current (customized) status of the port
 
-        byte[] readBuffer;
-        byte[,] buffer;             //col:DATA_BYTES_PER_PACKAGE  row: BUFFER_RECORD_NUM
+        byte[] readBuffer;          //used for storing data that retrieved from serial port every time
+        byte[,] buffer;             //used for caching data that . col:DATA_BYTES_PER_PACKAGE  row: BUFFER_RECORD_NUM
         int bufferColumnIndex; 
         int bufferRowIndex;
         bool closing;               //whether the port is being closing
@@ -158,7 +158,7 @@ namespace DHSignalIllustrator
                 portsList.Enabled = false;
                 stopBtn.Enabled = true;
 
-                file = new FileStream("Cached_Data.txt", FileMode.Append);//, FileAccess.Write, FileShare.Write, 4096, true);
+                file = new FileStream("Cached_Data.txt", FileMode.Append, FileAccess.Write, FileShare.Write, 4096, true);
                 sw = new StreamWriter(file);
             }
             catch (UnauthorizedAccessException exception)
@@ -262,6 +262,8 @@ namespace DHSignalIllustrator
         private void drawPoints(object sender, EventArgs e)
         {
             maxX++;
+
+            //Caculate average value and add to chart
             for (int j = 0; j < LINE_NUM; j++)
             {
                 int temp = 0;
@@ -275,6 +277,7 @@ namespace DHSignalIllustrator
 
             }
 
+            //Check pressing status
             for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
             {
                 if (buffer[i, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
@@ -297,54 +300,6 @@ namespace DHSignalIllustrator
                 //Remove the points that can't be displayed
                 for(int i = 0; i < LINE_NUM; i++) signalChart.Series[i].Points.RemoveAt(0);
             }
-
-            //    for (int index = bufferRowIndex - drawingStride; index < bufferRowIndex; index++)
-            //    {
-            //        maxX++;
-
-            //        Display the pressing status (0x01:pressed 0x00:not pressed)
-            //        Color color;
-            //    if (buffer[index, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
-            //    {
-            //        color = Color.Red;
-            //    }
-            //    else
-            //    {
-            //        color = Color.Transparent;
-            //    }
-
-            //    DataPoint point;
-            //    if (maxX >= MAX_RANGE_X)
-            //    {
-            //        for (int i = 0; i < LINE_NUM; i++)
-            //        {
-            //            point = signalChart.Series[i].Points[0];
-            //            point.MarkerColor = color;
-            //            point.SetValueXY(maxX, buffer[index, i * 2] * 16 * 16 + buffer[index, i * 2 + 1]);
-            //            signalChart.Series[i].Points.Add(point);
-
-            //            Remove the points that can't be displayed
-            //                signalChart.Series[i].Points.RemoveAt(0);
-            //        }
-
-            //        Shift chart
-            //            signalChart.ChartAreas[0].AxisX.Minimum++;
-            //        signalChart.ChartAreas[0].AxisX.Maximum++;
-            //    }
-            //    else
-            //    {
-            //        for (int i = 0; i < LINE_NUM; i++)
-            //        {
-            //            point = new DataPoint(maxX, buffer[index, i * 2] * 16 * 16 + buffer[index, i * 2 + 1]);
-            //            point.MarkerColor = color;
-            //            signalChart.Series[i].Points.Add(point);
-
-            //        }
-            //    }
-
-            //    signalChart.ChartAreas[0].RecalculateAxesScale();
-
-            //}
         }
 
         private void saveBuffer()
@@ -360,7 +315,6 @@ namespace DHSignalIllustrator
                 }
                 sw.Write(buffer[i, DATA_BYTES_PER_PACKAGE - 1]);
             }
-
         }
 
         public void displayLine(object sender, EventArgs e)
