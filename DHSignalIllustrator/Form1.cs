@@ -14,45 +14,43 @@ using System.IO;
 
 namespace DHSignalIllustrator
 {
-    public enum processStatus
-    {
-        WaitingForHeaderOne,
-        WaitingForHeaderTwo,
-        WaitingForData
-    }
-
     public partial class Form1 : Form
     {
         //*************configure****************
 
-        const int LINE_NUM = 8;                              //the number of line in chart
-        const int BUFFER_RECORD_NUM = 500;                   //the number of buffer rows 
+        //the number of lines in chart
+        const int LINE_NUM = 8;
+
+        //the number of buffer rows                        
+        const int BUFFER_RECORD_NUM = 500;
+
         const int DATA_NUM_PER_PACKAGE = 16;
-        const int portReceivedBytesThreshold = 1024;
+        const int PORT_RECEIVED_BYTES_THRESHOLD = 1024;
 
-        const int DISPLAYED_DATA_BIT_NUM = 2 * LINE_NUM;     //the number of bits in one package to be displayed
-        const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;    //"+1" for pressing status byte
-        const int drawingStride = portReceivedBytesThreshold / DATA_BYTES_PER_PACKAGE;  //When retrieved data from port, display these data as one point(for rugular displaying with average value). The stride is the number of point in one time retrieving.
+        //"+1" for pressing state byte
+        const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;
 
-        const int MAX_RANGE_X = 100;                         //the display range of x axis 
+        //When retrieve data from port, display these data as one point(for rugular displaying). 
+        //The stride is the number of point in one time retrieving.
+        const int DRAWING_STRIDE = PORT_RECEIVED_BYTES_THRESHOLD / DATA_BYTES_PER_PACKAGE;
+
+        //the display range of x axis 
+        const int MAX_RANGE_X = 100;
+
         const int MARKER_SIZE = 10;
         const int LINE_BORDER_WIDTH = 2;
 
-        //***********************************
-
-        int maxX = 0;               //the x value of the most recent added points
+        //************************************** 
         SerialPort com;             //port
-        processStatus status;       //current (customized) status of the port
 
-        byte[] readBuffer;          //used for storing data that retrieved from serial port every time
-        byte[,] buffer;             //used for caching data that . col:DATA_BYTES_PER_PACKAGE  row: BUFFER_RECORD_NUM
-        int bufferColumnIndex; 
-        int bufferRowIndex;
+        byte[] readBuffer;
+
         bool closing;               //whether the port is being closing
         bool listening;             //whether the port is listening
 
-        FileStream file;
-        StreamWriter sw;
+        ChartDrawer drawer;
+        DataBuffer dataBuffer;
+        StateMachine sMachine;
 
         public Form1()
         {
@@ -60,15 +58,13 @@ namespace DHSignalIllustrator
 
             configureUI();
 
-            resetStatus();
-
             readBuffer = new byte[4096];
-            buffer = new byte[BUFFER_RECORD_NUM,DATA_BYTES_PER_PACKAGE];
             closing = false;
             listening = false;
 
-            //this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            //this.MaximizeBox = false;
+            drawer = new ChartDrawer(DRAWING_STRIDE, LINE_NUM, signalChart, MAX_RANGE_X);
+            dataBuffer = new DataBuffer(BUFFER_RECORD_NUM, DATA_BYTES_PER_PACKAGE, "Cached_Data.txt", drawer, this);
+            sMachine = new StateMachine(dataBuffer);
         }
 
         ~Form1()
@@ -77,9 +73,10 @@ namespace DHSignalIllustrator
             {
                 stopCom(this, null);
             }
-            sw.Close();
-            file.Close();
+
+            sMachine.stop();
         }
+
 
         private void configureUI()
         {
@@ -125,13 +122,6 @@ namespace DHSignalIllustrator
             stopBtn.Enabled = false;
         }
 
-        private void resetStatus()
-        {
-            bufferColumnIndex = 0;
-            bufferRowIndex = 0;
-            status = processStatus.WaitingForHeaderOne;
-        }
-
         public void startToCom(object sender, EventArgs e)
         {
             if (portsList.SelectedItem == null)
@@ -146,7 +136,7 @@ namespace DHSignalIllustrator
                 com.DataReceived += new SerialDataReceivedEventHandler(onDataReceived);
                 com.BaudRate = 115200;
                 com.DataBits = 8;
-                com.ReceivedBytesThreshold = portReceivedBytesThreshold;
+                com.ReceivedBytesThreshold = PORT_RECEIVED_BYTES_THRESHOLD;
             }
 
             try
@@ -158,8 +148,7 @@ namespace DHSignalIllustrator
                 portsList.Enabled = false;
                 stopBtn.Enabled = true;
 
-                file = new FileStream("Cached_Data.txt", FileMode.Append, FileAccess.Write, FileShare.Write, 4096, true);
-                sw = new StreamWriter(file);
+                sMachine.start();
             }
             catch (UnauthorizedAccessException exception)
             {
@@ -170,10 +159,10 @@ namespace DHSignalIllustrator
 
         public void stopCom(object sender, EventArgs e)
         {
-            if (com != null && com.IsOpen) 
+            if (com != null && com.IsOpen)
             {
                 closing = true;
-                while(listening)
+                while (listening)
                 {
                     Application.DoEvents();
                 }
@@ -183,12 +172,7 @@ namespace DHSignalIllustrator
                 portsList.Enabled = true;
                 stopBtn.Enabled = false;
 
-                saveBuffer();
-                resetStatus();
-
-                sw.Close();
-                file.Close();
-
+                sMachine.stop();
             }
         }
 
@@ -201,7 +185,6 @@ namespace DHSignalIllustrator
                 int readBytes = com.BytesToRead;
                 com.Read(readBuffer, 0, readBytes);
                 processData(readBuffer, readBytes);
-
             }
             catch (Exception exception)
             {
@@ -217,103 +200,7 @@ namespace DHSignalIllustrator
         {
             for (int i = 0; i < size; i++)
             {
-                if (readBuffer[i] == 0x7E)
-                {
-                    status = processStatus.WaitingForHeaderTwo;
-                    bufferColumnIndex = 0;
-                }
-
-                //header: Ox7E = 126, Ox45 = 69
-                switch (status)
-                {
-                    case processStatus.WaitingForHeaderOne:
-                        if (readBuffer[i] == 0x7E) status = processStatus.WaitingForHeaderTwo;
-                        break;
-                    case processStatus.WaitingForHeaderTwo:
-                        if (readBuffer[i] == 0x45) status = processStatus.WaitingForData;
-                        break;
-                    case processStatus.WaitingForData:
-                        {
-                            buffer[bufferRowIndex, bufferColumnIndex++] = readBuffer[i];
-                            if (bufferColumnIndex >= DATA_BYTES_PER_PACKAGE)
-                            {
-                                bufferColumnIndex = 0;
-                                bufferRowIndex++;
-
-                                if (bufferRowIndex % drawingStride == 0)
-                                {
-                                    this.Invoke(new EventHandler(drawPoints));
-                                }
-
-                                status = processStatus.WaitingForHeaderOne;
-
-                                if (bufferRowIndex == BUFFER_RECORD_NUM)
-                                {
-                                    saveBuffer();
-                                    bufferRowIndex = 0;
-                                }
-                            }
-                            break;
-                        }
-                }
-            }
-        }
-
-        private void drawPoints(object sender, EventArgs e)
-        {
-            maxX++;
-
-            //Caculate average value and add to chart
-            for (int j = 0; j < LINE_NUM; j++)
-            {
-                int temp = 0;
-
-                for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
-                {
-                    temp += buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1];
-                }
-
-                signalChart.Series[j].Points.AddXY(maxX, temp / drawingStride);
-
-            }
-
-            //Check pressing status
-            for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
-            {
-                if (buffer[i, DATA_BYTES_PER_PACKAGE - 1] == 0x01)
-                {
-                    int count = signalChart.Series[0].Points.Count();
-                    for (int j = 0; j < LINE_NUM; j++)
-                    {
-                        signalChart.Series[j].Points[count - 1].MarkerColor = Color.Red;
-                    }
-                    break;
-                }
-            }
-
-            //Shift chart
-            if (maxX >= MAX_RANGE_X)
-            {
-                signalChart.ChartAreas[0].AxisX.Minimum++;
-                signalChart.ChartAreas[0].AxisX.Maximum++;
-
-                //Remove the points that can't be displayed
-                for(int i = 0; i < LINE_NUM; i++) signalChart.Series[i].Points.RemoveAt(0);
-            }
-        }
-
-        private void saveBuffer()
-        {
-
-            for (int i = 0; i < bufferRowIndex; i++)
-            {
-                sw.Write("\r\n");
-                for (int j = 0; j < DATA_NUM_PER_PACKAGE; j++)
-                {
-                    sw.Write(buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1]);
-                    sw.Write(' ');
-                }
-                sw.Write(buffer[i, DATA_BYTES_PER_PACKAGE - 1]);
+                sMachine.parseData(readBuffer[i]);
             }
         }
 
@@ -333,4 +220,340 @@ namespace DHSignalIllustrator
             }
         }
     }
+
+    interface State
+    {
+        void receivedHeaderOne();
+        void receivedHeaderTwo();
+        void receivedData(bool doRefresh);
+    }
+
+    class WaitingForHeaderOne : State
+    {
+        StateMachine machine;
+        DataBuffer buffer;
+
+        public WaitingForHeaderOne(){}
+        public WaitingForHeaderOne(StateMachine machine, DataBuffer buffer)
+        {
+            this.machine = machine;
+            this.buffer = buffer;
+        }
+        public void receivedHeaderOne()
+        {
+            machine.setCurrentState(machine.getWaitingForHeaderTwoState());
+            buffer.resetColumnIndex();
+        }
+        public void receivedHeaderTwo() { }
+        public void receivedData(bool doRefresh) { }
+    }
+
+    class WaitingForHeaderTwo : State
+    {
+        StateMachine machine;
+
+        public WaitingForHeaderTwo(){}
+        public WaitingForHeaderTwo(StateMachine machine) {this.machine = machine; }
+
+        public void receivedHeaderOne() { }
+        public void receivedHeaderTwo()
+        {
+            machine.setCurrentState(machine.getWaitingForDataState());
+        }
+        public void receivedData(bool doRefresh) { }
+
+    }
+
+    class WaitingForData : State
+    {
+        StateMachine machine;
+
+        public WaitingForData(){}
+        public WaitingForData(StateMachine machine) {this.machine = machine;}
+
+        public void receivedHeaderOne()
+        {
+            machine.setCurrentState(machine.getWaitingForHeaderTwoState());
+        }
+
+        public void receivedHeaderTwo() { }
+
+        public void receivedData(bool doRefresh)
+        {
+            if(doRefresh)
+            {
+                machine.setCurrentState(machine.getWaitingForHeaderOneState());
+            }
+        }
+    }
+
+    class StateMachine
+    {
+        State comState;  //current (customized) state of the port
+        WaitingForHeaderOne wFHOne;
+        WaitingForHeaderTwo wFHTwo;
+        WaitingForData wFData;
+
+        DataBuffer buffer;
+
+        public StateMachine(DataBuffer recorder)
+        {
+            wFHOne = new WaitingForHeaderOne(this, recorder);
+            wFHTwo = new WaitingForHeaderTwo(this);
+            wFData = new WaitingForData(this);
+            comState = wFHOne;
+
+            this.buffer = recorder;
+
+        }
+
+        public State getWaitingForHeaderOneState()
+        {
+            return wFHOne;
+        }
+
+        public State getWaitingForHeaderTwoState()
+        {
+            return wFHTwo;
+        }
+
+        public State getWaitingForDataState()
+        {
+            return wFData;
+        }
+
+        public void setCurrentState(State s)
+        {
+            comState = s;
+        }
+
+        public void parseData(byte dataByte)
+        {
+            if (dataByte == 0x7E)
+            {
+                comState.receivedHeaderOne();
+            }
+            else if (dataByte == 0x45)
+            {
+                comState.receivedHeaderTwo();
+            }
+            else
+            {
+                comState.receivedData(buffer.add(dataByte));
+            }
+        }
+
+        public void saveBuffer()
+        {
+            buffer.saveBuffer();
+            buffer.resetBufferIndex();
+            setCurrentState(wFHOne);
+        }
+
+        public void start()
+        {
+            buffer.openFile();
+        }
+
+        public void stop()
+        {
+            saveBuffer();
+            buffer.closeFile();
+        }
+    }
+
+    public class DataBuffer
+    {
+        byte[,] buffer;
+        int bufferColumnIndex;
+        int bufferRowIndex;
+
+        int buffer_column_size;
+        int buffer_row_size;
+        int dataNumCountPerPackage;
+        Form mainForm;
+        ChartDrawer drawer;
+        DataPersistanceHelper persistanceHelper;
+
+        public DataBuffer(int buffer_row_size, int buffer_column_size, string cacheName, ChartDrawer drawer, Form mainForm)
+        {
+            buffer = new byte[buffer_row_size, buffer_column_size];
+            bufferColumnIndex = 0;
+            bufferRowIndex = 0;
+
+            this.buffer_column_size = buffer_column_size;
+            this.buffer_row_size = buffer_row_size;
+            this.dataNumCountPerPackage = (buffer_column_size - 1) / 2;
+            this.drawer = drawer;
+            this.mainForm = mainForm;
+            this.persistanceHelper = new DataPersistanceHelper(cacheName);
+        }
+
+        public bool add(byte data)
+        {
+            buffer[bufferRowIndex, bufferColumnIndex++] = data;
+            if (bufferColumnIndex >= buffer_column_size)
+            {
+                resetColumnIndex();
+                bufferRowIndex++;
+
+                if (bufferRowIndex % drawer.drawingStride == 0)//Display points
+                {
+                    mainForm.Invoke(drawer.drawPointsDg, new Object[] { bufferRowIndex, buffer });
+
+                }
+
+                if (bufferRowIndex == buffer_row_size)//Refresh buffer
+                {
+                    persistanceHelper.saveBuffer(buffer_row_size, (buffer_column_size - 1) / 2, buffer);
+                    bufferRowIndex = 0;
+                }
+
+                return true;//time to change state to "wait for header one"
+            }
+            return false;
+        }
+
+        public void openFile()
+        {
+            persistanceHelper.openFile();
+        }
+
+        public void closeFile()
+        {
+            persistanceHelper.closeFile();
+        }
+
+        public void saveBuffer()
+        {
+            persistanceHelper.saveBuffer(buffer_row_size, dataNumCountPerPackage, buffer);
+            resetBufferIndex();
+        }
+
+        public void resetRowIndex()
+        {
+            bufferRowIndex = 0;
+        }
+
+        public void resetColumnIndex()
+        {
+            bufferColumnIndex = 0;
+        }
+
+        public void resetBufferIndex()
+        {
+            resetColumnIndex();
+            resetRowIndex();
+        }
+    }
+
+    public class DataPersistanceHelper
+    {
+        FileStream file;
+        StreamWriter sw;
+        string fileName;
+        public DataPersistanceHelper(string fileName)//name: "Cached_Data.txt"
+        {
+            this.fileName = fileName;
+        }
+
+        public void openFile()
+        {
+            file = new FileStream(fileName, FileMode.Append);//, FileAccess.Write, FileShare.Write, 4096, true);
+            sw = new StreamWriter(file);
+        }
+
+        public void closeFile()
+        {
+            sw.Close();
+            file.Close();
+        }
+
+        public void saveBuffer(int buffer_row_size, int dataNumPerPackage, byte[,] buffer)
+        {
+
+            for (int i = 0; i < buffer_row_size; i++)
+            {
+                string temp = "";
+                for (int j = 0; j < dataNumPerPackage; j++)
+                {
+                    temp += (Convert.ToString(buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1]) + " ");
+                }
+                temp += (Convert.ToString(buffer[i, dataNumPerPackage * 2]) + "\r\n");
+                sw.Write(temp);
+            }
+
+        }
+    }
+
+    public class ChartDrawer
+    {
+        static int maxX = 0; //the x value of the most recent added points
+        
+        Chart signalChart;
+        int pointsNumDisplayedInOnePackage;
+        int maxXRange;
+
+        public delegate void drawPointsDelegate(int bufferRowIndex, byte[,] buffer);
+        public drawPointsDelegate drawPointsDg;
+        public int drawingStride { get; set; }
+
+        public ChartDrawer(int drawingStride, int pointsNumDisplayedInOnePackage, Chart signalChart, int maxXRange)
+        {
+            this.drawingStride = drawingStride;
+            this.pointsNumDisplayedInOnePackage = pointsNumDisplayedInOnePackage;
+            this.signalChart = signalChart;
+            this.drawPointsDg = new drawPointsDelegate(drawPoints);
+            this.maxXRange = maxXRange;
+        }
+
+        public void drawPoints(int bufferRowIndex, byte[,] buffer)
+        {
+            maxX++;
+
+            //Caculate average value
+            for (int j = 0; j < pointsNumDisplayedInOnePackage; j++)
+            {
+                int temp = 0;
+
+                for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
+                {
+                    temp += buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1];
+                }
+
+                signalChart.Series[j].Points.AddXY(maxX, temp / drawingStride);
+
+            }
+
+            //Detect press state
+            for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
+            {
+                if (buffer[i, pointsNumDisplayedInOnePackage * 2] == 0x01)
+                {
+                    int count = signalChart.Series[0].Points.Count();
+                    foreach (Series ser in signalChart.Series)
+                    {
+                        ser.Points[count - 1].MarkerColor = Color.Red;
+                    }
+                    break;
+                }
+            }
+
+            //Shift chart
+            if (maxX >= maxXRange)
+            {
+                signalChart.ChartAreas[0].AxisX.Minimum++;
+                signalChart.ChartAreas[0].AxisX.Maximum++;
+
+                //Remove the points that can't be displayed
+                //for (int i = 0; i < pointsNumDisplayedInOnePackage; i++) signalChart.Series[i].Points.RemoveAt(0);
+                foreach(Series ser in signalChart.Series)
+                {
+                    ser.Points.RemoveAt(0);
+                }
+            }
+        }
+    }
+
+    
 }
