@@ -21,9 +21,6 @@ namespace DHSignalIllustrator
         //the number of lines in chart
         const int LINE_NUM = 8;
 
-        //the number of buffer rows                        
-        const int BUFFER_RECORD_NUM = 500;
-
         const int DATA_NUM_PER_PACKAGE = 16;
         const int PORT_RECEIVED_BYTES_THRESHOLD = 1024;
 
@@ -32,7 +29,10 @@ namespace DHSignalIllustrator
 
         //When retrieve data from port, display these data as one point(for rugular displaying). 
         //The stride is the number of point in one time retrieving.
-        const int DRAWING_STRIDE = PORT_RECEIVED_BYTES_THRESHOLD / DATA_BYTES_PER_PACKAGE;
+        const int DRAWING_STRIDE =  PORT_RECEIVED_BYTES_THRESHOLD / DATA_BYTES_PER_PACKAGE;
+
+        //the number of buffer rows                        
+        const int BUFFER_RECORD_NUM = 20 * DRAWING_STRIDE;
 
         //the display range of x axis 
         const int MAX_RANGE_X = 100;
@@ -368,44 +368,48 @@ namespace DHSignalIllustrator
         int bufferColumnIndex;
         int bufferRowIndex;
 
-        int buffer_column_size;
-        int buffer_row_size;
+        Object[] objects;
+        int bufferColumnSize;
+        int bufferRowSize;
         int dataNumCountPerPackage;
         Form mainForm;
         ChartDrawer drawer;
         DataPersistanceHelper persistanceHelper;
 
-        public DataBuffer(int buffer_row_size, int buffer_column_size, string cacheName, ChartDrawer drawer, Form mainForm)
+        public DataBuffer(int bufferRowSize, int bufferColumnSize, string cacheName, ChartDrawer drawer, Form mainForm)
         {
-            buffer = new byte[buffer_row_size, buffer_column_size];
+            buffer = new byte[bufferRowSize, bufferColumnSize];
             bufferColumnIndex = 0;
             bufferRowIndex = 0;
 
-            this.buffer_column_size = buffer_column_size;
-            this.buffer_row_size = buffer_row_size;
-            this.dataNumCountPerPackage = (buffer_column_size - 1) / 2;
+            this.bufferColumnSize = bufferColumnSize;
+            this.bufferRowSize = bufferRowSize;
+            this.dataNumCountPerPackage = (bufferColumnSize - 1) / 2;
             this.drawer = drawer;
             this.mainForm = mainForm;
             this.persistanceHelper = new DataPersistanceHelper(cacheName);
+            this.objects = new Object[3];
         }
 
         public bool add(byte data)
         {
             buffer[bufferRowIndex, bufferColumnIndex++] = data;
-            if (bufferColumnIndex >= buffer_column_size)
+            if (bufferColumnIndex >= bufferColumnSize)
             {
                 resetColumnIndex();
                 bufferRowIndex++;
 
                 if (bufferRowIndex % drawer.drawingStride == 0)//Display points
                 {
-                    mainForm.Invoke(drawer.drawPointsDg, new Object[] { bufferRowIndex, buffer });
-
+                    objects[0] = bufferRowIndex;
+                    objects[1] = bufferColumnSize - 1;
+                    objects[2] = buffer;
+                    mainForm.Invoke(drawer.drawPointsDg, objects);
                 }
 
-                if (bufferRowIndex == buffer_row_size)//Refresh buffer
+                if (bufferRowIndex == bufferRowSize)//Refresh buffer
                 {
-                    persistanceHelper.saveBuffer(buffer_row_size, (buffer_column_size - 1) / 2, buffer);
+                    persistanceHelper.saveBuffer(bufferRowSize, (bufferColumnSize - 1) / 2, buffer);
                     bufferRowIndex = 0;
                 }
 
@@ -426,7 +430,7 @@ namespace DHSignalIllustrator
 
         public void saveBuffer()
         {
-            persistanceHelper.saveBuffer(buffer_row_size, dataNumCountPerPackage, buffer);
+            persistanceHelper.saveBuffer(bufferRowSize, dataNumCountPerPackage, buffer);
             resetBufferIndex();
         }
 
@@ -469,10 +473,10 @@ namespace DHSignalIllustrator
             file.Close();
         }
 
-        public void saveBuffer(int buffer_row_size, int dataNumPerPackage, byte[,] buffer)
+        public void saveBuffer(int bufferRowSize, int dataNumPerPackage, byte[,] buffer)
         {
 
-            for (int i = 0; i < buffer_row_size; i++)
+            for (int i = 0; i < bufferRowSize; i++)
             {
                 string temp = "";
                 for (int j = 0; j < dataNumPerPackage; j++)
@@ -494,7 +498,7 @@ namespace DHSignalIllustrator
         int pointsNumDisplayedInOnePackage;
         int maxXRange;
 
-        public delegate void drawPointsDelegate(int bufferRowIndex, byte[,] buffer);
+        public delegate void drawPointsDelegate(int bufferRowIndex, int pressStateIndex, byte[,] buffer);
         public drawPointsDelegate drawPointsDg;
         public int drawingStride { get; set; }
 
@@ -507,7 +511,7 @@ namespace DHSignalIllustrator
             this.maxXRange = maxXRange;
         }
 
-        public void drawPoints(int bufferRowIndex, byte[,] buffer)
+        public void drawPoints(int bufferRowIndex, int pressStateIndex, byte[,] buffer)
         {
             maxX++;
 
@@ -519,21 +523,18 @@ namespace DHSignalIllustrator
                 for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
                 {
                     temp += buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1];
-                }
-
+                }             
                 signalChart.Series[j].Points.AddXY(maxX, temp / drawingStride);
-
             }
 
             //Detect press state
             for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
             {
-                if (buffer[i, pointsNumDisplayedInOnePackage * 2] == 0x01)
+                if (buffer[i, pressStateIndex] == 0x01)
                 {
-                    int count = signalChart.Series[0].Points.Count();
                     foreach (Series ser in signalChart.Series)
                     {
-                        ser.Points[count - 1].MarkerColor = Color.Red;
+                        ser.Points.Last().MarkerColor = Color.Red;
                     }
                     break;
                 }
@@ -547,7 +548,7 @@ namespace DHSignalIllustrator
 
                 //Remove the points that can't be displayed
                 //for (int i = 0; i < pointsNumDisplayedInOnePackage; i++) signalChart.Series[i].Points.RemoveAt(0);
-                foreach(Series ser in signalChart.Series)
+                foreach (Series ser in signalChart.Series)
                 {
                     ser.Points.RemoveAt(0);
                 }
