@@ -45,7 +45,7 @@ namespace DHSignalIllustrator
 
         byte[] readBuffer;
 
-        bool closing;               //whether the port is being closing
+        bool closing;               //whether the port is being closed
         bool listening;             //whether the port is listening
 
         ChartDrawer drawer;
@@ -475,10 +475,10 @@ namespace DHSignalIllustrator
 
         public void saveBuffer(int bufferRowSize, int dataNumPerPackage, byte[,] buffer)
         {
-
+            string temp;
             for (int i = 0; i < bufferRowSize; i++)
             {
-                string temp = "";
+                temp = "";
                 for (int j = 0; j < dataNumPerPackage; j++)
                 {
                     temp += (Convert.ToString(buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1]) + " ");
@@ -492,7 +492,7 @@ namespace DHSignalIllustrator
 
     public class ChartDrawer
     {
-        static int maxX = 0; //the x value of the most recent added points
+        static int maxX = 0; //the x value of the most recently added points
         
         Chart signalChart;
         int pointsNumDisplayedInOnePackage;
@@ -519,11 +519,10 @@ namespace DHSignalIllustrator
             for (int j = 0; j < pointsNumDisplayedInOnePackage; j++)
             {
                 int temp = 0;
-
                 for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
                 {
                     temp += buffer[i, j * 2] * 16 * 16 + buffer[i, j * 2 + 1];
-                }             
+                }
                 signalChart.Series[j].Points.AddXY(maxX, temp / drawingStride);
             }
 
@@ -541,13 +540,12 @@ namespace DHSignalIllustrator
             }
 
             //Shift chart
-            if (maxX >= maxXRange)
+            if (maxX > maxXRange - 2)
             {
                 signalChart.ChartAreas[0].AxisX.Minimum++;
                 signalChart.ChartAreas[0].AxisX.Maximum++;
 
                 //Remove the points that can't be displayed
-                //for (int i = 0; i < pointsNumDisplayedInOnePackage; i++) signalChart.Series[i].Points.RemoveAt(0);
                 foreach (Series ser in signalChart.Series)
                 {
                     ser.Points.RemoveAt(0);
