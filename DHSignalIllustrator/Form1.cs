@@ -329,11 +329,11 @@ namespace DHSignalIllustrator
 
         public void parseData(byte dataByte)
         {
-            if (dataByte == 0x7E)
+            if (dataByte == '*')//set it to actal value
             {
                 comState.receivedHeaderOne();
             }
-            else if (dataByte == 0x45)
+            else if (dataByte == '*')//set it to actal value
             {
                 comState.receivedHeaderTwo();
             }
@@ -529,7 +529,7 @@ namespace DHSignalIllustrator
             //Detect press state
             for (int i = bufferRowIndex - drawingStride; i < bufferRowIndex; i++)
             {
-                if (buffer[i, pressStateIndex] == 0x01)
+                if (buffer[i, pressStateIndex] == '*')//set is to actual value
                 {
                     foreach (Series ser in signalChart.Series)
                     {
