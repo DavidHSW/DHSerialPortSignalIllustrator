@@ -21,14 +21,11 @@ namespace DHSignalIllustrator
         //the number of lines in chart
         const int LINE_NUM = 8;
 
-        const int DATA_NUM_PER_PACKAGE = 16;
+        const int DATA_NUM_PER_PACKAGE = '*';//set it to actal value
         const int PORT_RECEIVED_BYTES_THRESHOLD = 1024;
 
-        //"+1" for pressing state byte
         const int DATA_BYTES_PER_PACKAGE = DATA_NUM_PER_PACKAGE * 2 + 1;
 
-        //When retrieve data from port, display these data as one point(for rugular displaying). 
-        //The stride is the number of point in one time retrieving.
         const int DRAWING_STRIDE =  PORT_RECEIVED_BYTES_THRESHOLD / DATA_BYTES_PER_PACKAGE;
 
         //the number of buffer rows                        
