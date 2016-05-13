@@ -130,61 +130,7 @@ namespace DHSignalIllustrator
 
         private void processSignalBuffer(int[,] signalBuffer, int row, int col)
         {
-            int total, temp;
-            int moveValidation = 0;
-            int validatioeRecord = 0;
-
-            for (int j = 0; j < col; j++)
-            {
-                total = 0;
-                for (int i = 0; i < row; i++)
-                {
-                    total += signalBuffer[i,j];//Sum up.
-                    if(i == 2)
-                    {
-                        resultBuffer[j] = signalBuffer[i, j];//Get initial value. The 3rd value of all 5 values.
-                    }
-                }
-
-                //Calculate background value.
-                temp = resultBuffer[j] - (total / row);
-
-                //Filter noise.
-                temp = (temp > filterMin && temp < filterMax) ? 1 : 0;
-                //temp = (temp < 1000) ? 0 : temp;
-                resultBuffer[j] = resultBuffer[j] * temp;
-
-                //Validation check.
-                if (temp != 0)
-                {
-                    moveValidation++;
-                    if (moveValidation > validatioeRecord)
-                    {
-                        validatioeRecord = moveValidation;
-                    }
-                }
-                else
-                {
-                    moveValidation = 0;
-                }
-            }
-
-            //Clear unwanted points.
-            if (validatioeRecord > 4)
-            {
-                for (int j = 0; j < col + 1; j++)
-                {
-                    resultBuffer[j] = 0;
-                }
-                //isSameRegionPeak = false;
-            } else if (validatioeRecord > 0) // && !isSameRegionPeak)
-            {
-                //isSameRegionPeak = true;
-                drawer.moveCount++;
-            }
-
-            //Draw points
-            //drawer.drawResultPoints(resultBuffer);
+            //Process the data here.
 
             //Cache points for 3D chart.
             drawer.cache3DData(resultBuffer);
