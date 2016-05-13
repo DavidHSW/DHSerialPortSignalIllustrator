@@ -2,6 +2,8 @@
 
 This is a sieral port dada visualizer which read data package from serial port and display them at real time. 
 
+![image](https://github.com/DavidHSW/DHSerialPortSignalIllustrator/blob/master/ScreenShot.PNG)
+
 ## Feature
 
 * Real time dispaly with hight efficiency. Don't take up to much CPU computation. 
