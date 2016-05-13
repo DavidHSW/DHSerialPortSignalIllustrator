@@ -24,4 +24,6 @@ C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\bin\De
 C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.csprojResolveAssemblyReference.cache
 C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.Properties.Resources.resources
 C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.csproj.GenerateResource.Cache
-C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.Form1.resources
+C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\obj\Debug\DHSignalIllustrator.DHSignalIllustrator.resources
+C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\bin\Debug\DHLineChart.dll
+C:\Users\hkpuadmin\Desktop\Repoes\DHSignalIllustrator\DHSignalIllustrator\bin\Debug\DHLineChart.pdb

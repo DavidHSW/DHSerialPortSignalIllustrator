@@ -51,16 +51,30 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Form1.cs">
+    <Compile Include="ChartDrawer.cs" />
+    <Compile Include="3DChart\ChartFunctions.cs" />
+    <Compile Include="3DChart\ChartStyle.cs" />
+    <Compile Include="3DChart\ChartStyle2D.cs" />
+    <Compile Include="3DChart\ColorMap.cs" />
+    <Compile Include="DataBuffer.cs" />
+    <Compile Include="DataPersistanceHelper.cs" />
+    <Compile Include="3DChart\DataSeries.cs" />
+    <Compile Include="DHSignalIllustrator.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <Compile Include="DHSignalIllustrator.Designer.cs">
+      <DependentUpon>DHSignalIllustrator.cs</DependentUpon>
     </Compile>
+    <Compile Include="3DChart\DrawChart.cs" />
+    <Compile Include="3DChart\LineStyle.cs" />
+    <Compile Include="3DChart\Matrix3.cs" />
+    <Compile Include="3DChart\Point3.cs" />
+    <Compile Include="3DChart\Point4.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="Form1.resx">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <Compile Include="StateMachine.cs" />
+    <EmbeddedResource Include="DHSignalIllustrator.resx">
+      <DependentUpon>DHSignalIllustrator.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -87,6 +101,12 @@
   <ItemGroup>
     <Content Include="Logo.ico" />
     <Content Include="www.ico.la_6886f1bedc897f9912958b9ff2b7f22f_64X64.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DHLineChart\DHLineChart\DHLineChart.csproj">
+      <Project>{1FC3515B-EC97-4A8C-A5FC-94CF2856E304}</Project>
+      <Name>DHLineChart</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
